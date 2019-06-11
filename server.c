@@ -82,7 +82,7 @@ void *one_client(void *arg)
 int bind_socket(char** argv)
 {
     struct sockaddr_in serv_addr;
-    int sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    int sockfd = socket(AF_INET, SOCK_STREAM, SOL_TCP);
     if (sockfd < 0)
         error("ERROR opening socket");
     memset((void *) &serv_addr, '\0', sizeof (serv_addr));

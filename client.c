@@ -11,6 +11,7 @@
 #include "error_handler.h"
 #include "client.h"
 #include "utils.h"
+#include <arpa/inet.h> // inet_pton()
 
 void * client_screen(void * arg)
 {
@@ -26,6 +27,7 @@ void * client_screen(void * arg)
             error("ERROR reading from socket");
         printf("%s", buffer);
     }
+    return NULL;
 }
 
 void client(char** argv)
@@ -36,7 +38,7 @@ void client(char** argv)
     struct hostent *server;
     char buffer[256];
     portno = atoi(argv[3]);
-    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    sockfd = socket(AF_INET, SOCK_STREAM, SOL_TCP);
     if (sockfd < 0)
         error("ERROR opening socket");
     server = gethostbyname(argv[2]);
@@ -46,14 +48,17 @@ void client(char** argv)
         fprintf(stderr, "ERROR, no such host\n");
         exit(0);
     }
-    printf("name: %s, h_addr_list: %4s, lenght: %d\n", server->h_name, server->h_addr_list[0], server->h_length);
+    // char * SERWER_IP = inet_ntoa( **( struct in_addr ** ) server->h_addr_list ) TO CHAR * IP
+    // inet_pton( AF_INET, SERWER_IP, & serwer.sin_addr ) FROM CHAR * TO BigEndian unint32_t 
+    printf("name: %s, h_addr_list: %s, lenght: %d\n", server->h_name, inet_ntoa( **( struct in_addr ** ) server->h_addr_list ), server->h_length);
 
     clear_memory((void *) &serv_addr, sizeof (serv_addr));
     serv_addr.sin_family = AF_INET;
-    memcpy((void *) server->h_addr,
-            (void *) &serv_addr.sin_addr.s_addr,
-            server->h_length);
+    serv_addr.sin_addr.s_addr = **( unsigned int ** ) server->h_addr_list;
     serv_addr.sin_port = htons(portno);
+      
+    printf("sin_addr.s_addr: %d\n", serv_addr.sin_addr.s_addr );
+    
     if (connect(sockfd, (struct sockaddr *) &serv_addr, sizeof (serv_addr)) < 0)
         error("ERROR connecting");
 
@@ -61,10 +66,10 @@ void client(char** argv)
     pthread_create(&thread, NULL, client_screen, (void*) sockfd);
     pthread_detach(thread);
 
-    printf("Please enter the message: ");
+   
     while (1)
     {
-
+        puts("You: ");
         clear_memory(buffer, sizeof (buffer));
         fgets(buffer, 255, stdin);
 
@@ -75,7 +80,7 @@ void client(char** argv)
 
         if (strncmp(buffer, "exit", 4) == 0)
         {
-            printf("CLOSING SOCKET FROM CLINET server : %d", sockfd);
+            printf("CLOSING SOCKET FROM CLINET server : %d\n", sockfd);
             shutdown(sockfd, SHUT_RDWR);
             break;
         }
