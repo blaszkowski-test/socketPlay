@@ -1,8 +1,10 @@
 build/Debug/Cygwin-Windows/server.o: server.c error_handler.h list.h \
- server.h
+ server.h utils.h
 
 error_handler.h:
 
 list.h:
 
 server.h:
+
+utils.h:

@@ -12,6 +12,7 @@
 #include "error_handler.h"
 #include "list.h"
 #include "server.h"
+#include "utils.h"
 
 struct List oneList;
 pthread_mutex_t count_mutex;
@@ -55,17 +56,19 @@ void *one_client(void *arg)
     long client_id = (long) arg;
     char buffer[256];
     char perclient[256];
-    int n;
     while (1)
     {
         memset((void *) buffer, '\0', sizeof (buffer));
         memset((void *) perclient, '\0', sizeof (perclient));
-        n = read(client_id, buffer, 255);
-        if (n == 0) break;
-        if (n < 0) error("ERROR reading from socket");
-        snprintf(perclient, sizeof (perclient), "From %d: %s", client_id, buffer);
-        puts(perclient);
-
+        switch (read(client_id, buffer, 255))
+        {
+            case 0: puts("server disconnected");
+                return NULL;
+            case -1: error("ERROR reading from socket");
+            default:
+                snprintf(perclient, sizeof (perclient), "From %d: %s", client_id, buffer);
+                puts(perclient);
+        }
         if (strncmp(buffer, "exit\n", 5) == 0)
         {
             printf("CLOSING SOCKET FROM SERVER clinet : %d", client_id);
@@ -84,7 +87,9 @@ int bind_socket(unsigned short port_number)
     struct sockaddr_in serv_addr;
     int sockfd = socket(AF_INET, SOCK_STREAM, SOL_TCP);
     if (sockfd < 0)
+    {
         error("ERROR opening socket");
+    }
     memset((void *) &serv_addr, '\0', sizeof (serv_addr));
 
     serv_addr.sin_family = AF_INET;
@@ -96,6 +101,7 @@ int bind_socket(unsigned short port_number)
     {
         error("ERROR on binding");
     }
+
     listen(sockfd, 5);
 
     return sockfd;
@@ -113,14 +119,14 @@ void server(unsigned short port_number)
     int sockfd = bind_socket(port_number);
 
     while (1)
-    {        
+    {
         accepted_socket_id = accept(sockfd, (struct sockaddr *) &client_settings, &client_settings_length);
 
-        printf("sin_addr: %d, sin_family: %d, sin_port: %d\n", htonl(client_settings.sin_addr.s_addr), client_settings.sin_family, client_settings.sin_port);
+        debug_sockaddr_in(&client_settings);
 
         if (accepted_socket_id < 0)
             error("ERROR on accept");
-        
+
         listPushBack(&oneList, (void*) accepted_socket_id);
         pthread_create(&thread, NULL, one_client, (void*) accepted_socket_id);
         pthread_detach(thread);

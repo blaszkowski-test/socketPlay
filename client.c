@@ -51,15 +51,15 @@ long connect_to_server(const char* host_name, unsigned short port_number)
     }
     if ((connection_host = gethostbyname(host_name)) == NULL)
     {
-        fprintf(stderr, "ERROR, no such host\n");
-        exit(0);
+        error("ERROR, no such host\n");     
     }
     debug_hostent(connection_host);
     setup_server_settings(&server_settings, connection_host, port_number);
-
     if (connect(server_socket, (struct sockaddr *) &server_settings, sizeof (server_settings)) < 0)
+    {
         error("ERROR connecting");
-
+    }
+    
     return server_socket;
 
 }

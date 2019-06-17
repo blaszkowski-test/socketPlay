@@ -21,6 +21,7 @@ extern "C"
 
     void clear_memory(void * pointer, size_t size);
     void debug_hostent(struct hostent *connection_host);
+    void debug_sockaddr_in(struct sockaddr_in *connection_host);
 
 
 #ifdef __cplusplus
