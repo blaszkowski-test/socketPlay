@@ -22,8 +22,7 @@ void * client_screen(void * arg)
         clear_memory(buffer, sizeof (buffer));
         switch (read(server_socket, buffer, 255))
         {
-            case 0: puts("server disconnected");
-                return NULL;
+            case 0: error("server disconnected");               
             case -1: error("ERROR reading from socket");
             default: printf("%s", buffer);
         }

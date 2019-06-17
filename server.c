@@ -14,8 +14,11 @@
 #include "server.h"
 #include "utils.h"
 
-struct List oneList;
-pthread_mutex_t count_mutex;
+static struct List oneList;
+static pthread_mutex_t count_mutex;
+static int max_server_clients; 
+static volatile int current_clients_length;
+static const char * to_many_connections = "To Many Connections";
 
 void remove_one_client(long client_id)
 {
@@ -33,12 +36,12 @@ void remove_one_client(long client_id)
         ++index;
     }
     resetIterator(&oneList);
+    --current_clients_length;
     pthread_mutex_unlock(&count_mutex);
 }
 
 void send_to_all_clients(char * message, long client_id)
 {
-
     pthread_mutex_lock(&count_mutex);
     int current = 0;
     while (listHasNext(&oneList) != false)
@@ -62,7 +65,9 @@ void *one_client(void *arg)
         memset((void *) perclient, '\0', sizeof (perclient));
         switch (read(client_id, buffer, 255))
         {
-            case 0: puts("server disconnected");
+            case 0: 
+                puts("client disconnected");
+                remove_one_client(client_id);
                 return NULL;
             case -1: error("ERROR reading from socket");
             default:
@@ -71,7 +76,7 @@ void *one_client(void *arg)
         }
         if (strncmp(buffer, "exit\n", 5) == 0)
         {
-            printf("CLOSING SOCKET FROM SERVER clinet : %d", client_id);
+            printf("CLOSING SOCKET FROM CLIENT : %d", client_id);
             remove_one_client(client_id);
             shutdown(client_id, SHUT_RDWR);
             return NULL;
@@ -107,10 +112,28 @@ int bind_socket(unsigned short port_number)
     return sockfd;
 }
 
+int server_connections_guard(long accepted_socket_id)
+{
+    pthread_mutex_lock(&count_mutex);
+    int status = 1;
+    ++current_clients_length;
+    if (current_clients_length > max_server_clients)
+    {
+        write(accepted_socket_id, to_many_connections, strlen(to_many_connections));
+        shutdown(accepted_socket_id, SHUT_RDWR);
+        --current_clients_length;
+        status = 0;
+    }
+    pthread_mutex_unlock(&count_mutex);
+    return status;
+}
+
 void server(unsigned short port_number)
 {
     initList(&oneList);
     pthread_t thread;
+    max_server_clients = 2;
+    current_clients_length = 0;
     pthread_mutex_init(&count_mutex, NULL);
     struct sockaddr_in client_settings;
     socklen_t client_settings_length = sizeof (client_settings);
@@ -127,9 +150,12 @@ void server(unsigned short port_number)
         if (accepted_socket_id < 0)
             error("ERROR on accept");
 
-        listPushBack(&oneList, (void*) accepted_socket_id);
-        pthread_create(&thread, NULL, one_client, (void*) accepted_socket_id);
-        pthread_detach(thread);
+        if (server_connections_guard(accepted_socket_id))
+        {
+            listPushBack(&oneList, (void*) accepted_socket_id);
+            pthread_create(&thread, NULL, one_client, (void*) accepted_socket_id);
+            pthread_detach(thread);
+        }
     }
 
     freeList(&oneList, false);
