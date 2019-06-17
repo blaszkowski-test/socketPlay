@@ -14,15 +14,15 @@ int main(int argc, char** argv)
         fprintf(stderr, "usage %s type[server,client] hostname port\n", argv[0]);
         exit(0);
     }
-   
+
     if (strcmp(argv[1], "server") == 0)
     {
-        server(argv);
+        server(atoi(argv[3]));
     } else
     {
-        client(argv);
+        client(argv[2], atoi(argv[3]));
     }
-    
+
 
     return (EXIT_SUCCESS);
 }

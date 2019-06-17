@@ -19,11 +19,11 @@ extern "C"
 {
 #endif
 
-    void server(char** argv);
+    void server(unsigned short port_number);
     void *one_client(void *arg);
     void send_to_all_clients(char * message, long client_id);
     void remove_one_client(long client_id);
-    int bind_socket(char** argv);
+    int bind_socket(unsigned short port_number);
 
 #ifdef __cplusplus
 }

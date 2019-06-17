@@ -79,7 +79,7 @@ void *one_client(void *arg)
     return NULL;
 }
 
-int bind_socket(char** argv)
+int bind_socket(unsigned short port_number)
 {
     struct sockaddr_in serv_addr;
     int sockfd = socket(AF_INET, SOCK_STREAM, SOL_TCP);
@@ -88,7 +88,7 @@ int bind_socket(char** argv)
     memset((void *) &serv_addr, '\0', sizeof (serv_addr));
 
     serv_addr.sin_family = AF_INET;
-    serv_addr.sin_port = htons(atoi(argv[3]));
+    serv_addr.sin_port = htons(port_number);
     serv_addr.sin_addr.s_addr = INADDR_ANY;
 
     if (bind(sockfd, (struct sockaddr *) &serv_addr,
@@ -101,28 +101,28 @@ int bind_socket(char** argv)
     return sockfd;
 }
 
-void server(char** argv)
+void server(unsigned short port_number)
 {
     initList(&oneList);
     pthread_t thread;
     pthread_mutex_init(&count_mutex, NULL);
-    struct sockaddr_in cli_addr;
-    int clilen;
-    long newsockfd;
+    struct sockaddr_in client_settings;
+    socklen_t client_settings_length = sizeof (client_settings);
+    long accepted_socket_id;
 
-    int sockfd = bind_socket(argv);
+    int sockfd = bind_socket(port_number);
 
     while (1)
-    {
-        clilen = sizeof (cli_addr);
-        newsockfd = accept(sockfd, (struct sockaddr *) &cli_addr, &clilen);
+    {        
+        accepted_socket_id = accept(sockfd, (struct sockaddr *) &client_settings, &client_settings_length);
 
-        printf("sin_addr: %d, sin_family: %d, sin_port: %d\n", htonl(cli_addr.sin_addr.s_addr), cli_addr.sin_family, cli_addr.sin_port);
+        printf("sin_addr: %d, sin_family: %d, sin_port: %d\n", htonl(client_settings.sin_addr.s_addr), client_settings.sin_family, client_settings.sin_port);
 
-        if (newsockfd < 0)
+        if (accepted_socket_id < 0)
             error("ERROR on accept");
-        listPushBack(&oneList, (void*) newsockfd);
-        pthread_create(&thread, NULL, one_client, (void*) newsockfd);
+        
+        listPushBack(&oneList, (void*) accepted_socket_id);
+        pthread_create(&thread, NULL, one_client, (void*) accepted_socket_id);
         pthread_detach(thread);
     }
 

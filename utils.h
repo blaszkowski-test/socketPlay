@@ -20,7 +20,7 @@ extern "C"
 #endif
 
     void clear_memory(void * pointer, size_t size);
-
+    void debug_hostent(struct hostent *connection_host);
 
 
 #ifdef __cplusplus
