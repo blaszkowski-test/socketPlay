@@ -20,11 +20,13 @@ extern "C"
 {
 #endif
 
-    void * client_screen(void * arg);
-    void client(const char* host_name, unsigned short port_number);
-    long connect_to_server(const char* host_name, unsigned short port_number);
-    void create_read_socket_thread(long server_socket);
-    void setup_server_settings(struct sockaddr_in * server_settings, struct hostent *connection_host, unsigned short port_number);
+    void * client_screen_tcp(void * arg);
+    void * client_screen_udp(void * arg);
+    void client(const char *type, const char* host_name, unsigned short port_number);
+    long connect_to_server_tcp(const char* host_name, unsigned short port_number);
+    long connect_to_server_udp(const char* host_name, unsigned short port_number);
+    void create_read_socket_thread(long server_socket, const char *type);
+    void setup_server_settings(struct hostent *connection_host, unsigned short port_number);
 
 #ifdef __cplusplus
 }
