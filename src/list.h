@@ -41,10 +41,12 @@ extern "C"
     void listPushFront(struct List * one, void * object);
     void listInsert(struct List * one, void * object, int index);
     void * listGet(struct List * one, int index);
-    bool listRemove(struct List * one, int index);
+    bool listRemove(struct List *list, int index, bool freeObject);
 
     bool listHasNext(struct List * list);
     void * listNext(struct List * list);
+    bool listHasPrev(struct List * list);
+    void * listPrev(struct List * list);
     void resetIterator(struct List * list);
     
     void freeNode(struct Node * one, bool freeObject);

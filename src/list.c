@@ -1,7 +1,7 @@
 
 #include "list.h"
 
-void initList(struct List * list)
+void initList(struct List *list)
 {
     list->size = 0;
     list->current = NULL;
@@ -9,9 +9,9 @@ void initList(struct List * list)
     list->last = NULL;
 }
 
-void listAddRoot(struct List * list, void * object)
+void listAddRoot(struct List *list, void *object)
 {
-    list->first = (struct Node *) malloc(sizeof (struct Node));
+    list->first = (struct Node *)malloc(sizeof(struct Node));
     list->first->object = object;
     list->first->next = NULL;
     list->first->previous = NULL;
@@ -19,19 +19,20 @@ void listAddRoot(struct List * list, void * object)
     list->size = 1;
 }
 
-void listPushBack(struct List * list, void * object)
+void listPushBack(struct List *list, void *object)
 {
     if (list->size == 0)
     {
         listAddRoot(list, object);
-    } else
+    }
+    else
     {
-        struct Node * pointer = list->first;
+        struct Node *pointer = list->first;
         while (pointer->next != NULL)
         {
             pointer = pointer->next;
         }
-        pointer->next = (struct Node *) malloc(sizeof (struct Node));
+        pointer->next = (struct Node *)malloc(sizeof(struct Node));
         pointer->next->object = object;
         pointer->next->next = NULL;
         pointer->next->previous = pointer;
@@ -40,16 +41,17 @@ void listPushBack(struct List * list, void * object)
     }
 };
 
-void listPushFront(struct List * list, void * object)
+void listPushFront(struct List *list, void *object)
 {
     if (list->size == 0)
     {
         listAddRoot(list, object);
-    } else
+    }
+    else
     {
-        struct Node * pointer = list->first;
+        struct Node *pointer = list->first;
 
-        pointer->previous = (struct Node *) malloc(sizeof (struct Node));
+        pointer->previous = (struct Node *)malloc(sizeof(struct Node));
         pointer->previous->object = object;
         pointer->previous->next = pointer;
         pointer->previous->previous = NULL;
@@ -58,7 +60,7 @@ void listPushFront(struct List * list, void * object)
     }
 };
 
-void listInsert(struct List * list, void * object, int index)
+void listInsert(struct List *list, void *object, int index)
 {
     if (index < 1 || index >= list->size)
     {
@@ -66,8 +68,8 @@ void listInsert(struct List * list, void * object, int index)
     }
 
     int counter = 0;
-    struct Node * pointer = list->first;
-    struct Node * previous = NULL;
+    struct Node *pointer = list->first;
+    struct Node *previous = NULL;
 
     while (pointer->next != NULL && counter != index)
     {
@@ -76,20 +78,20 @@ void listInsert(struct List * list, void * object, int index)
     }
 
     previous = pointer->previous;
-    previous->next = (struct Node *) malloc(sizeof (struct Node));
+    previous->next = (struct Node *)malloc(sizeof(struct Node));
     previous->next->object = object;
     previous->next->next = pointer;
     previous->next->previous = previous;
 }
 
-void * listGet(struct List * list, int index)
+void *listGet(struct List *list, int index)
 {
     if (index < 0 || index >= list->size)
     {
-        return ((void*) 0);
+        return ((void *)0);
     }
     int counter = 0;
-    struct Node * pointer = list->first;
+    struct Node *pointer = list->first;
     while (pointer->next != NULL && counter != index)
     {
         pointer = pointer->next;
@@ -99,7 +101,7 @@ void * listGet(struct List * list, int index)
     return pointer->object;
 }
 
-bool listRemove(struct List * list, int index)
+bool listRemove(struct List *list, int index, bool freeObject)
 {
     if (index < 0 || index >= list->size)
     {
@@ -107,7 +109,7 @@ bool listRemove(struct List * list, int index)
     }
 
     int counter = 0;
-    struct Node * pointer = list->first;
+    struct Node *pointer = list->first;
     while (pointer->next != NULL && counter != index)
     {
         pointer = pointer->next;
@@ -118,12 +120,18 @@ bool listRemove(struct List * list, int index)
     {
         freeList(list, false);
         return true;
-    } else if (index == 0)
+    }
+    else if (index == 0)
     {
         list->first = pointer->next;
-    } else
+    }
+    else
     {
-        pointer->previous->next = pointer->next;        
+        pointer->previous->next = pointer->next;
+    }
+    if (freeObject)
+    {
+        free(pointer->object);
     }
     free(pointer);
     list->size -= 1;
@@ -131,7 +139,7 @@ bool listRemove(struct List * list, int index)
     return true;
 }
 
-bool listHasNext(struct List * list)
+bool listHasNext(struct List *list)
 {
     if (list->first == NULL)
     {
@@ -146,7 +154,7 @@ bool listHasNext(struct List * list)
     return list->current->next != NULL;
 }
 
-void * listNext(struct List * list)
+void *listNext(struct List *list)
 {
     if (list->current == NULL)
     {
@@ -162,12 +170,43 @@ void * listNext(struct List * list)
     return list->current->object;
 }
 
-void resetIterator(struct List * list)
+bool listHasPrev(struct List *list)
+{
+    if (list->last == NULL)
+    {
+        return false;
+    }
+
+    if (list->current == NULL)
+    {
+        return true;
+    }
+
+    return list->current->previous != NULL;
+}
+
+void *listPrev(struct List *list)
+{
+    if (list->current == NULL)
+    {
+        list->current = list->last;
+        return list->current->object;
+    }
+
+    if (list->current->previous != NULL)
+    {
+        list->current = list->current->previous;
+    }
+
+    return list->current->object;
+}
+
+void resetIterator(struct List *list)
 {
     list->current = NULL;
 }
 
-void freeNode(struct Node * node, bool freeObject)
+void freeNode(struct Node *node, bool freeObject)
 {
     if (node->next != NULL)
     {
@@ -180,7 +219,7 @@ void freeNode(struct Node * node, bool freeObject)
     free(node);
 }
 
-void freeList(struct List * list, bool freeObject)
+void freeList(struct List *list, bool freeObject)
 {
     freeNode(list->first, freeObject);
     list->first = NULL;

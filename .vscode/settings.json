@@ -1,6 +1,0 @@
-{
-    "files.associations": {
-        "signal.h": "c",
-        "system_error": "c"
-    }
-}

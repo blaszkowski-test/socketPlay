@@ -22,6 +22,7 @@ static int max_server_clients;
 static volatile int current_clients_length;
 static const char *to_many_connections = "To Many Connections";
 static sig_atomic_t server_run = 1;
+static struct timeval timeout;
 void server_run_handler(int param)
 {
     perror("Interrupt bye");
@@ -38,7 +39,7 @@ void remove_one_client(long client_id)
         current = (long)listNext(&oneList);
         if (current == client_id)
         {
-            listRemove(&oneList, index);
+            listRemove(&oneList, index, false);
             break;
         }
         ++index;
@@ -52,11 +53,25 @@ void send_to_all_clients_tcp(char *message, long client_id)
 {
     pthread_mutex_lock(&count_mutex);
     int current = 0;
+    fd_set fds;
+
     while (listHasNext(&oneList) != false)
     {
+        FD_ZERO(&fds);
         current = (long)listNext(&oneList);
         if (current == client_id)
             continue;
+
+        FD_SET(current, &fds);
+        errno = 0;
+        while (!socket_can_write(fds, current, &timeout))
+        {
+            if (errno > 0)
+            {
+                perror("socket write");
+                continue;
+            }
+        }        
         write(current, message, strlen(message));
     }
     resetIterator(&oneList);
@@ -69,24 +84,40 @@ void send_to_all_clients_udp(int sockfd, const char *message, struct sockaddr_in
     int client_exists = false;
     ssize_t message_length = 0;
     int index = 0;
+    fd_set fds;
+    FD_ZERO(&fds);
+    FD_SET(sockfd, &fds);
     while (listHasNext(&oneList) != false)
     {
         current = (struct sockaddr_in *)listNext(&oneList);
-        if (current->sin_addr.s_addr == client->sin_addr.s_addr)
+        if (current->sin_port == client->sin_port)
             continue;
+
+        errno = 0;
+        while (!socket_can_write(fds, sockfd, &timeout))
+        {
+            if (errno > 0)
+            {
+                perror("socket write");
+                index -= 1;
+                listPrev(&oneList);
+                listRemove(&oneList, index, true);
+                continue;
+            }
+        }
 
         message_length = sendto(sockfd, message, strlen(message),
                                 0, (const struct sockaddr *)current,
                                 sizeof(struct sockaddr_in));
 
-        // if (message_length < 1)
-        // {
-        //     listRemove(&oneList, index);
-        //     free(current);
-        //     resetIterator(&oneList);
-        //     index = -1;
-        // }
-        // ++index;
+        if (message_length < 1)
+        {
+            perror("socket write");
+            index -= 1;
+            listPrev(&oneList);
+            listRemove(&oneList, index, true);
+        }
+        ++index;
     }
     resetIterator(&oneList);
 }
@@ -95,9 +126,23 @@ void *one_client(void *arg)
 {
     long client_id = (long)arg;
     char buffer[256];
-    char perclient[256];
+    char perclient[300];
+    fd_set fds;
+    FD_ZERO(&fds);
+    FD_SET(client_id, &fds);
     while (1)
     {
+        errno = 0;
+        while (!socket_can_read(fds, client_id, &timeout))
+        {
+            if (errno > 0)
+            {
+                perror("socket read");
+                remove_one_client(client_id);
+                return NULL;
+            }
+        }
+
         memset((void *)buffer, '\0', sizeof(buffer));
         memset((void *)perclient, '\0', sizeof(perclient));
         switch (read(client_id, buffer, 255))
@@ -109,12 +154,12 @@ void *one_client(void *arg)
         case -1:
             error("ERROR reading from socket");
         default:
-            snprintf(perclient, sizeof(perclient), "From %d: %s", client_id, buffer);
+            snprintf(perclient, sizeof(perclient), "From %ld: %s", client_id, buffer);
             puts(perclient);
         }
         if (strncmp(buffer, "exit\n", 5) == 0)
         {
-            printf("CLOSING SOCKET FROM CLIENT : %d", client_id);
+            printf("CLOSING SOCKET FROM CLIENT : %ld", client_id);
             remove_one_client(client_id);
             shutdown(client_id, SHUT_RDWR);
             return NULL;
@@ -127,7 +172,7 @@ void *one_client(void *arg)
 
 int bind_socket_tcp(unsigned short port_number)
 {
-    int sockfd = socket(AF_INET, SOCK_STREAM, SOL_TCP);
+    int sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if (sockfd < 0)
     {
         error("ERROR opening socket");
@@ -159,7 +204,7 @@ int bind_socket_tcp(unsigned short port_number)
 
 int bind_socket_udp(unsigned short port_number)
 {
-    int sockfd = socket(AF_INET, SOCK_DGRAM, SOL_UDP);
+    int sockfd = socket(AF_INET, SOCK_DGRAM, 0);
     if (sockfd < 0)
     {
         error("ERROR opening socket");
@@ -208,7 +253,7 @@ void udp_push_list(struct sockaddr_in *client)
     while (listHasNext(&oneList) != false)
     {
         current = (struct sockaddr_in *)listNext(&oneList);
-        if (current->sin_addr.s_addr == client->sin_addr.s_addr)
+        if (current->sin_port == client->sin_port)
         {
             client_exists = true;
             break;
@@ -231,7 +276,6 @@ void server(unsigned short port_number, const char *type)
     void (*prev_handler)(int);
     prev_handler = signal(SIGINT | SIGTERM | SIGABRT, server_run_handler);
 
-    struct timeval timeout;
     timeout.tv_sec = 1; // 1s timeout
     timeout.tv_usec = 0;
 
@@ -263,39 +307,38 @@ void server(unsigned short port_number, const char *type)
 
     while (server_run)
     {
-        if (socket_can_read(main_fds, sockfd, &timeout))
+        if (!socket_can_read(main_fds, sockfd, &timeout))
         {
-            if (0 == strcmp("TCP", type))
+            continue;
+        }
+
+        if (0 == strcmp("TCP", type))
+        {
+            accepted_socket_id = accept(sockfd, (struct sockaddr *)&client_settings, &client_settings_length);
+            debug_sockaddr_in(&client_settings);
+
+            if (accepted_socket_id < 0)
+                error("ERROR on accept");
+
+            if (server_connections_guard(accepted_socket_id))
             {
-                accepted_socket_id = accept(sockfd, (struct sockaddr *)&client_settings, &client_settings_length);
-                debug_sockaddr_in(&client_settings);
-
-                if (accepted_socket_id < 0)
-                    error("ERROR on accept");
-
-                if (server_connections_guard(accepted_socket_id))
-                {
-                    listPushBack(&oneList, (void *)accepted_socket_id);
-                    pthread_create(&thread, NULL, one_client, (void *)accepted_socket_id);
-                    pthread_detach(thread);
-                }
+                listPushBack(&oneList, (void *)accepted_socket_id);
+                pthread_create(&thread, NULL, one_client, (void *)accepted_socket_id);
+                pthread_detach(thread);
             }
-            else
+        }
+        else
+        {
+            memset((void *)buffer, '\0', sizeof(buffer));
+            message_length = recvfrom(sockfd, (char *)buffer, 255,
+                                      0, (struct sockaddr *)&client_settings,
+                                      &client_settings_length);
+            debug_sockaddr_in(&client_settings);
+            if (message_length > 0)
             {
-                memset((void *)buffer, '\0', sizeof(buffer));
-                message_length = recvfrom(sockfd, (char *)buffer, 255,
-                                          0, (struct sockaddr *)&client_settings,
-                                          &client_settings_length);
-                if (message_length > 0)
-                {
-                    puts(buffer);
-                    udp_push_list(&client_settings);
-                    send_to_all_clients_udp(sockfd, buffer, &client_settings);
-                }
-                else if (-1 == message_length)
-                {
-                    error(strerror(errno));                    
-                }
+                puts(buffer);
+                udp_push_list(&client_settings);
+                send_to_all_clients_udp(sockfd, buffer, &client_settings);
             }
         }
     }
