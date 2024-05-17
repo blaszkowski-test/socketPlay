@@ -31,8 +31,8 @@ void debug_sockaddr_in(struct sockaddr_in *connection_host)
 
 int socket_can_read(int sockfd)
 {
-    static fd_set fds;
-    static struct timeval timeout;
+    fd_set fds;
+    struct timeval timeout;
 
     timeout.tv_sec = 1;
     timeout.tv_usec = 0;
@@ -54,8 +54,8 @@ int socket_can_read(int sockfd)
 
 int socket_can_write(int sockfd)
 {
-    static fd_set fds;
-    static struct timeval timeout;
+    fd_set fds;
+    struct timeval timeout;
 
     timeout.tv_sec = 1;
     timeout.tv_usec = 0;
