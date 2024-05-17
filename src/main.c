@@ -5,9 +5,9 @@
 #include "client.h"
 
 /*
- * 
+ *
  */
-int main(int argc, char** argv)
+int main(int argc, char **argv)
 {
     if (argc < 4)
     {
@@ -18,11 +18,11 @@ int main(int argc, char** argv)
     if (strcmp(argv[1], "server") == 0)
     {
         server(atoi(argv[4]), argv[2]);
-    } else
+    }
+    else
     {
         client(argv[2], argv[3], atoi(argv[4]));
     }
-
 
     return (EXIT_SUCCESS);
 }

@@ -4,7 +4,7 @@
  * and open the template in the editor.
  */
 
-/* 
+/*
  * File:   error_handler.h
  * Author: piotr
  *
@@ -21,10 +21,8 @@ extern "C"
 
     void error(const char *msg);
 
-
 #ifdef __cplusplus
 }
 #endif
 
 #endif /* ERROR_HANDLER_H */
-

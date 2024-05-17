@@ -15,19 +15,16 @@
 #include <errno.h>
 
 static struct sockaddr_in server_settings;
-static struct timeval timeout;
 
 void *client_screen_tcp(void *arg)
 {
     long server_socket = (long)arg;
     char buffer[256];
-    fd_set main_fds;
-    FD_ZERO(&main_fds);
-    FD_SET(server_socket, &main_fds);
+
     while (1)
     {
         errno = 0;
-        while (!socket_can_read(main_fds, server_socket, &timeout))
+        while (!socket_can_read(server_socket))
         {
             if (errno > 0)
             {
@@ -57,13 +54,11 @@ void *client_screen_udp(void *arg)
     socklen_t server_settings_length = sizeof(server_settings);
 
     ssize_t message_length = 0;
-    fd_set main_fds;
-    FD_ZERO(&main_fds);
-    FD_SET(server_socket, &main_fds);
+
     while (1)
     {
         errno = 0;
-        while (!socket_can_read(main_fds, server_socket, &timeout))
+        while (!socket_can_read(server_socket))
         {
             if (errno > 0)
             {
@@ -160,8 +155,6 @@ void client(const char *type, const char *host_name, unsigned short port_number)
 {
     clear_memory((void *)&server_settings, sizeof(server_settings));
 
-    timeout.tv_sec = 1; // 1s timeout
-    timeout.tv_usec = 0;
     long server_socket;
     char buffer[256];
     ssize_t message_length = 0;
@@ -177,10 +170,6 @@ void client(const char *type, const char *host_name, unsigned short port_number)
 
     create_read_socket_thread(server_socket, type);
 
-    fd_set main_fds;
-    FD_ZERO(&main_fds);
-    FD_SET(server_socket, &main_fds);
-
     while (1)
     {
         puts("You: \n");
@@ -189,7 +178,7 @@ void client(const char *type, const char *host_name, unsigned short port_number)
         // strcpy(buffer, "DUPA");
 
         errno = 0;
-        while (!socket_can_write(main_fds, server_socket, &timeout))
+        while (!socket_can_write(server_socket))
         {
             if (errno > 0)
             {

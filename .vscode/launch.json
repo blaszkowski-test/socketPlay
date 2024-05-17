@@ -11,7 +11,7 @@
             "program": "${workspaceFolder}/bin/main",
             "args": [
                 "server",
-                "UDP",
+                "TCP",
                 "127.0.0.1",
                 "8600"
             ],
@@ -37,7 +37,7 @@
             "program": "${workspaceFolder}/bin/main",
             "args": [
                 "client",
-                "UDP",
+                "TCP",
                 "127.0.0.1",
                 "8600"
             ],

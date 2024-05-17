@@ -22,7 +22,7 @@ static int max_server_clients;
 static volatile int current_clients_length;
 static const char *to_many_connections = "To Many Connections";
 static sig_atomic_t server_run = 1;
-static struct timeval timeout;
+
 void server_run_handler(int param)
 {
     perror("Interrupt bye");
@@ -53,25 +53,21 @@ void send_to_all_clients_tcp(char *message, long client_id)
 {
     pthread_mutex_lock(&count_mutex);
     int current = 0;
-    fd_set fds;
-
     while (listHasNext(&oneList) != false)
     {
-        FD_ZERO(&fds);
         current = (long)listNext(&oneList);
         if (current == client_id)
             continue;
 
-        FD_SET(current, &fds);
         errno = 0;
-        while (!socket_can_write(fds, current, &timeout))
+        while (!socket_can_write(current))
         {
             if (errno > 0)
             {
                 perror("socket write");
                 continue;
             }
-        }        
+        }
         write(current, message, strlen(message));
     }
     resetIterator(&oneList);
@@ -84,9 +80,6 @@ void send_to_all_clients_udp(int sockfd, const char *message, struct sockaddr_in
     int client_exists = false;
     ssize_t message_length = 0;
     int index = 0;
-    fd_set fds;
-    FD_ZERO(&fds);
-    FD_SET(sockfd, &fds);
     while (listHasNext(&oneList) != false)
     {
         current = (struct sockaddr_in *)listNext(&oneList);
@@ -94,7 +87,7 @@ void send_to_all_clients_udp(int sockfd, const char *message, struct sockaddr_in
             continue;
 
         errno = 0;
-        while (!socket_can_write(fds, sockfd, &timeout))
+        while (!socket_can_write(sockfd))
         {
             if (errno > 0)
             {
@@ -127,13 +120,11 @@ void *one_client(void *arg)
     long client_id = (long)arg;
     char buffer[256];
     char perclient[300];
-    fd_set fds;
-    FD_ZERO(&fds);
-    FD_SET(client_id, &fds);
+
     while (1)
     {
         errno = 0;
-        while (!socket_can_read(fds, client_id, &timeout))
+        while (!socket_can_read(client_id))
         {
             if (errno > 0)
             {
@@ -276,9 +267,6 @@ void server(unsigned short port_number, const char *type)
     void (*prev_handler)(int);
     prev_handler = signal(SIGINT | SIGTERM | SIGABRT, server_run_handler);
 
-    timeout.tv_sec = 1; // 1s timeout
-    timeout.tv_usec = 0;
-
     char buffer[256];
 
     initList(&oneList);
@@ -301,13 +289,9 @@ void server(unsigned short port_number, const char *type)
         sockfd = bind_socket_udp(port_number);
     }
 
-    fd_set main_fds;
-    FD_ZERO(&main_fds);
-    FD_SET(sockfd, &main_fds);
-
     while (server_run)
     {
-        if (!socket_can_read(main_fds, sockfd, &timeout))
+        if (!socket_can_read(sockfd))
         {
             continue;
         }

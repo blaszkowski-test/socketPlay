@@ -29,28 +29,46 @@ void debug_sockaddr_in(struct sockaddr_in *connection_host)
            connection_host->sin_port);
 }
 
-int socket_can_read(fd_set mask, int sockfd, struct timeval *timeout)
+int socket_can_read(int sockfd)
 {
-    int select_status = select(sockfd + 1, &mask, NULL, NULL, timeout);
+    static fd_set fds;
+    static struct timeval timeout;
+
+    timeout.tv_sec = 1;
+    timeout.tv_usec = 0;
+
+    FD_ZERO(&fds);
+    FD_SET(sockfd, &fds);
+
+    int select_status = select(sockfd + 1, &fds, NULL, NULL, &timeout);
     if (select_status == -1)
     {
         return 0;
     }
-    else if (select_status > 0 && FD_ISSET(sockfd, &mask))
+    else if (select_status > 0 && FD_ISSET(sockfd, &fds))
     {
         return 1;
     }
     return 0;
 }
 
-int socket_can_write(fd_set mask, int sockfd, struct timeval *timeout)
+int socket_can_write(int sockfd)
 {
-    int select_status = select(sockfd + 1, NULL, &mask, NULL, timeout);
+    static fd_set fds;
+    static struct timeval timeout;
+
+    timeout.tv_sec = 1;
+    timeout.tv_usec = 0;
+
+    FD_ZERO(&fds);
+    FD_SET(sockfd, &fds);
+
+    int select_status = select(sockfd + 1, NULL, &fds, NULL, &timeout);
     if (select_status == -1)
     {
         return 0;
     }
-    else if (select_status > 0 && FD_ISSET(sockfd, &mask))
+    else if (select_status > 0 && FD_ISSET(sockfd, &fds))
     {
         return 1;
     }

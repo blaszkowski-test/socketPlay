@@ -4,7 +4,7 @@
  * and open the template in the editor.
  */
 
-/* 
+/*
  * File:   utils.h
  * Author: piotr
  *
@@ -23,8 +23,8 @@ extern "C"
     void clear_memory(void *pointer, size_t size);
     void debug_hostent(struct hostent *connection_host);
     void debug_sockaddr_in(struct sockaddr_in *connection_host);
-    int socket_can_read(fd_set mask, int sockfd, struct timeval *time_set);
-    int socket_can_write(fd_set mask, int sockfd, struct timeval *time_set);
+    int socket_can_read(int sockfd);
+    int socket_can_write(int sockfd);
 
 #ifdef __cplusplus
 }
